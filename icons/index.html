@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="掷骰子走完生老病死的一生，体会保险的重要性。">
+<meta name="theme-color" content="#123d3b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="人生蛇棋">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>人生蛇棋</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;600;800&display=swap">
+<style>
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+/* Layout: wooden life-board on a green game table, control panel beside it (stacks on phones) */
+:root{
+  --table:#123d3b; --table2:#0b2a28; --wood:#5a3a1e;
+  --cellInk:#4d5a4a;
+  --paper:#fbf6e4; --muted:#a9c6c0; --gold:#f2b632; --goldInk:#3a2600;
+  --good:#3fbf74; --bad:#ff7a6b;
+  --display:"ZCOOL KuaiLe","PingFang SC","Microsoft YaHei",sans-serif;
+  --body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:radial-gradient(ellipse at 30% 10%,var(--table),var(--table2) 75%) fixed;background-color:var(--table2);color:var(--paper);font-family:var(--body);min-height:100%;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 32px}
+.wrap{max-width:1060px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(30px,6vw,46px);margin:0;letter-spacing:.04em;color:var(--gold);text-wrap:balance}
+.sub{color:var(--muted);font-size:14px}
+.stages{display:flex;flex-wrap:wrap;gap:8px}
+.stg{display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 10px;border-radius:999px;color:#2b2b2b;font-weight:600}
+.game{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
+@media (max-width:860px){.game{grid-template-columns:minmax(0,1fr)}}
+
+.boardFrame{background:var(--wood);padding:8px;border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.45),inset 0 0 0 2px rgba(255,255,255,.08);max-width:620px;width:100%;margin:0 auto}
+.board{position:relative;aspect-ratio:1;width:100%;max-width:100%;display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(10,1fr);border-radius:6px;overflow:hidden}
+.cell{position:relative;color:var(--cellInk);font-size:clamp(8px,1.6vw,12px);font-weight:600;padding:2px 4px;font-variant-numeric:tabular-nums}
+.cell .tag{position:absolute;left:2px;bottom:2px;font-size:clamp(7px,1.3vw,10px);font-weight:800;color:#3a3a3a;white-space:nowrap}
+.cell.goal{background:var(--gold)!important;color:var(--goldInk)}
+.cell.goal::after{content:"圆满";position:absolute;inset:auto 0 10% 0;text-align:center;font-family:var(--display);font-size:clamp(10px,2.2vw,16px)}
+.board svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.token{position:absolute;width:6.4%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,.45);transition:left .2s ease,top .2s ease;z-index:5;display:grid;place-items:center;font-size:clamp(8px,1.5vw,11px);font-weight:800;color:#fff}
+.token.slide{transition:left .7s cubic-bezier(.5,0,.3,1),top .7s cubic-bezier(.5,0,.3,1)}
+.token.active{box-shadow:0 0 0 3px var(--gold),0 3px 8px rgba(0,0,0,.5);z-index:6}
+
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px}
+.label{font-size:12px;letter-spacing:.12em;color:var(--muted);margin-bottom:8px}
+.turn{display:flex;align-items:center;gap:10px;font-family:var(--display);font-size:24px;flex-wrap:wrap}
+.turn .meta{font-family:var(--body);font-size:13px;color:var(--muted)}
+.money{font-variant-numeric:tabular-nums;font-weight:800}
+.money.neg{color:var(--bad)}
+.dot{width:20px;height:20px;border-radius:50%;border:2px solid #fff;flex:none}
+.diceRow{display:flex;align-items:center;gap:16px;margin-top:14px}
+.die{width:76px;height:76px;flex:none;background:#fffdf5;border-radius:14px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:10px;gap:2px;box-shadow:inset 0 -5px 0 #d8cfb0,0 6px 14px rgba(0,0,0,.35)}
+.die span{border-radius:50%;margin:3px}
+.die span.on{background:#2a2a2a}
+.die.one span.on{background:#c8443b}
+.die.rolling{animation:shake .5s ease}
+@keyframes shake{0%{transform:rotate(0)}25%{transform:rotate(-18deg) scale(1.05)}50%{transform:rotate(14deg)}75%{transform:rotate(-8deg) scale(1.05)}100%{transform:rotate(0)}}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--paper);outline-offset:2px}
+.roll{flex:1;min-width:0;font-family:var(--display);font-size:24px;padding:14px 10px;border:none;border-radius:12px;background:var(--gold);color:var(--goldInk);box-shadow:0 5px 0 #b07d10;transition:transform .08s,box-shadow .08s}
+.roll:active{transform:translateY(4px);box-shadow:0 1px 0 #b07d10}
+.roll:disabled{opacity:.5;cursor:not-allowed}
+.hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+
+.shop{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pol{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:var(--paper);border-radius:10px;padding:9px 10px;min-width:0}
+.pol b{font-size:15px}
+.pol small{font-size:11px;color:var(--muted);line-height:1.35}
+.pol .price{font-variant-numeric:tabular-nums;font-size:13px;color:var(--gold);font-weight:800}
+.pol:hover:not(:disabled){background:rgba(255,255,255,.14)}
+.pol:disabled{cursor:not-allowed;opacity:.45}
+.pol.owned{opacity:1;border-color:var(--good);background:rgba(63,191,116,.16)}
+.pol.owned .price{color:var(--good)}
+
+.players{display:flex;flex-direction:column;gap:10px}
+.prow{display:grid;grid-template-columns:20px 1fr auto;gap:2px 10px;align-items:center;font-size:14px}
+.prow .pos{color:var(--muted);font-variant-numeric:tabular-nums;font-size:13px}
+.prow .pols{grid-column:2/4;font-size:12px;color:var(--muted)}
+.prow.cur .nm{font-weight:800;color:var(--gold)}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px;max-height:160px;overflow:auto}
+.log li{line-height:1.45;color:var(--muted)}
+.log li:first-child{color:var(--paper)}
+.setup{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.seg{display:flex;border:1px solid rgba(255,255,255,.2);border-radius:10px;overflow:hidden}
+.seg button{background:transparent;color:var(--paper);border:none;padding:8px 14px;font-size:15px}
+.seg button[aria-pressed="true"]{background:var(--paper);color:var(--table2);font-weight:800}
+.reset{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.3);color:var(--paper);border-radius:10px;padding:8px 14px;font-size:14px}
+
+.modal{position:fixed;inset:0;background:rgba(5,20,19,.72);display:grid;place-items:center;z-index:20;padding:20px;overflow:auto}
+.sheet{background:var(--paper);color:#1d2b29;border-radius:18px;padding:24px 24px 20px;max-width:440px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.sheet .kind{font-size:12px;letter-spacing:.14em;font-weight:800;color:#6b7a70}
+.sheet h2{font-family:var(--display);font-weight:400;font-size:32px;margin:4px 0 8px;line-height:1.2}
+.sheet p{margin:8px 0;line-height:1.6;font-size:15px}
+.verdict{border-radius:12px;padding:12px 14px;font-weight:600;line-height:1.55;margin-top:12px}
+.verdict.ok{background:#dff4e6;color:#14532d}
+.verdict.no{background:#fde2dd;color:#7f1d1d}
+.verdict.tip{background:#fff1c7;color:#5a3d00;font-weight:400}
+.sheet .go{margin-top:16px;width:100%;font-family:var(--display);font-size:22px;border:none;border-radius:12px;padding:12px;background:var(--table);color:var(--paper)}
+.sum{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+.sum th,.sum td{padding:7px 6px;border-bottom:1px solid #e3dcc2;text-align:left;font-variant-numeric:tabular-nums}
+.sum th{font-size:12px;color:#6b7a70;font-weight:600}
+.sumWrap{overflow-x:auto}
+@media (prefers-reduced-motion:reduce){.token,.token.slide{transition:none}.die.rolling{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>人生蛇棋</h1>
+    <span class="sub">生、老、病、死都在路上。掷骰子走完一生，看看保险什么时候接住你。</span>
+  </header>
+  <div class="stages" id="stageLegend"></div>
+
+  <div class="game">
+    <div class="boardFrame"><div class="board" id="board"><svg id="art" viewBox="0 0 100 100" aria-hidden="true"></svg></div></div>
+
+    <div class="panel">
+      <div class="card">
+        <div class="label">现在轮到</div>
+        <div class="turn"><span class="dot" id="turnDot"></span><span id="turnName">玩家 1</span><span class="meta" id="turnMeta"></span></div>
+        <div class="diceRow">
+          <div class="die" id="die" aria-live="polite" aria-label="骰子"></div>
+          <button class="roll" id="rollBtn">掷骰子</button>
+        </div>
+        <div class="hint">每次掷骰子先领这个人生阶段的收入。掷到 6 点可以再掷一次。按空格键也能掷。</div>
+      </div>
+
+      <div class="card">
+        <div class="label">掷骰子前，要不要买保障？</div>
+        <div class="shop" id="shop"></div>
+        <div class="hint" id="shopHint">越年轻买越便宜。进入退休人生后，保险公司就不再接受投保。</div>
+      </div>
+
+      <div class="card">
+        <div class="label">各家人生</div>
+        <div class="players" id="players"></div>
+      </div>
+
+      <div class="card">
+        <div class="label">人生记录</div>
+        <ul class="log" id="log"></ul>
+      </div>
+
+      <div class="card">
+        <div class="setup">
+          <span class="label" style="margin:0">人数</span>
+          <div class="seg" id="seg">
+            <button id="n2" data-n="2" aria-pressed="true">2</button>
+            <button id="n3" data-n="3" aria-pressed="false">3</button>
+            <button id="n4" data-n="4" aria-pressed="false">4</button>
+          </div>
+          <button class="reset" id="resetBtn">重新开始</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+const STAGES=[
+  {name:'求学成长',icon:'🎒',from:1,to:20,c:['#fbeec1','#f5e2a0'],income:300,mult:1},
+  {name:'初入职场',icon:'💼',from:21,to:40,c:['#d9efd0','#c4e5b8'],income:1500,mult:1.5},
+  {name:'成家立业',icon:'🏠',from:41,to:60,c:['#d3e8f5','#bcdcf0'],income:2500,mult:2},
+  {name:'中年打拼',icon:'📈',from:61,to:80,c:['#ead9f2','#dcc4ea'],income:3000,mult:3},
+  {name:'退休人生',icon:'🌅',from:81,to:100,c:['#fbdcc9','#f6c8ad'],income:300,mult:null}];
+const stageOf=n=>STAGES.find(s=>n>=s.from&&n<=s.to)||STAGES[0];
+
+const POLICIES={
+  med:{name:'医药卡',icon:'💳',base:800,desc:'住院、手术费用'},
+  ci:{name:'疾病保险',icon:'🎗️',base:1000,desc:'癌症、中风等重疾'},
+  life:{name:'人寿保险',icon:'🛡️',base:1000,desc:'身故、全残，保障家人'},
+  save:{name:'储蓄计划',icon:'🐷',base:1500,desc:'失业应急，退休每期派钱'}};
+const priceOf=(k,pos)=>{const m=stageOf(pos||1).mult;return m?Math.round(POLICIES[k].base*m):null;};
+
+// 蛇 = 人生风险（老、病、死、意外）
+const SNAKES={
+  29:{to:9, kind:'理财',icon:'💸',title:'冲动消费',text:'刷信用卡买买买，欠下一笔卡债。',cost:3000,cover:null,
+      lesson:'没有一张保单能帮你还卡债。保险管风险，坏习惯要靠自己管。'},
+  38:{to:15,kind:'意外',icon:'📦',title:'突然失业',text:'公司裁员，好几个月没有收入。',cost:6000,cover:'save'},
+  47:{to:19,kind:'病',icon:'🏥',title:'重病住院',text:'急病住院两周，手术加药费一大笔。',cost:15000,cover:'med'},
+  53:{to:33,kind:'病',icon:'🎗️',title:'确诊癌症',text:'需要长期治疗，暂时不能工作。',cost:25000,cover:'ci'},
+  62:{to:37,kind:'死',icon:'🕯️',title:'家庭支柱意外身故',text:'家里的经济支柱突然离开，家人失去收入。',cost:30000,cover:'life'},
+  86:{to:54,kind:'老',icon:'👴',title:'退休金不够用',text:'活得比钱还长，存款提早花光。',cost:10000,cover:'save'},
+  92:{to:70,kind:'病',icon:'🧠',title:'突发中风',text:'需要长期复健和看护。',cost:20000,cover:'ci'},
+  97:{to:72,kind:'老',icon:'🛏️',title:'晚年频繁住院',text:'年纪大了，进出医院变成常事。',cost:15000,cover:'med'}};
+// 梯子 = 好的人生选择（生、成长）
+const LADDERS={
+  2: {to:23,icon:'📚',title:'用功读书',text:'考上理想大学。',bonus:0},
+  8: {to:34,icon:'🪙',title:'从小存钱',text:'养成储蓄习惯，第一桶金来得早。',bonus:1000},
+  20:{to:42,icon:'🤝',title:'找到好工作',text:'起薪不错，前途光明。',bonus:2000},
+  32:{to:68,icon:'🎓',title:'持续进修',text:'升职加薪。',bonus:5000},
+  41:{to:63,icon:'👶',title:'宝宝出生',text:'结婚生子，全家更有动力打拼。',bonus:0},
+  74:{to:88,icon:'🗓️',title:'提早规划退休',text:'目标清楚，晚年从容。',bonus:3000},
+  85:{to:95,icon:'🩺',title:'定期体检',text:'小毛病早发现，健康长寿。',bonus:0}};
+
+const COLORS=["#e5484d","#2f7de1","#2fa860","#9b4fd6"];
+const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+const RM=v=>(v<0?'-':'')+'RM '+Math.abs(v).toLocaleString('en-MY');
+
+const board=document.getElementById('board'),art=document.getElementById('art');
+const die=document.getElementById('die'),rollBtn=document.getElementById('rollBtn');
+let players=[],cur=0,busy=false,nPlayers=2,over=false,tokens=[];
+
+function xy(n){const r=Math.floor((n-1)/10);let c=(n-1)%10;if(r%2)c=9-c;return{x:c*10+5,y:(9-r)*10+5};}
+
+document.getElementById('stageLegend').innerHTML=STAGES.map(s=>
+  `<span class="stg" style="background:${s.c[1]}">${s.icon} ${s.name} <span style="font-weight:400">${s.from}–${s.to}</span></span>`).join('');
+
+for(let vr=9;vr>=0;vr--){for(let vc=0;vc<10;vc++){
+  const c=vr%2?9-vc:vc,n=vr*10+c+1,s=stageOf(n);
+  const d=document.createElement('div');
+  d.className='cell'+(n===100?' goal':'');
+  d.style.background=s.c[(vr+vc)%2];d.style.gridRow=10-vr;d.style.gridColumn=vc+1;
+  d.textContent=n;
+  if(n===s.from){const t=document.createElement('span');t.className='tag';t.textContent=s.icon+s.name;d.appendChild(t);}
+  board.insertBefore(d,art);
+}}
+
+const NS='http://www.w3.org/2000/svg';
+function el(t,a,txt){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(txt)e.textContent=txt;art.appendChild(e);return e;}
+for(const[a,L]of Object.entries(LADDERS)){
+  const p=xy(+a),q=xy(L.to),dx=q.x-p.x,dy=q.y-p.y,len=Math.hypot(dx,dy),nx=-dy/len*1.9,ny=dx/len*1.9;
+  for(const s of[1,-1])el('line',{x1:p.x+nx*s,y1:p.y+ny*s,x2:q.x+nx*s,y2:q.y+ny*s,stroke:'#7a4c22','stroke-width':1.1,'stroke-linecap':'round'});
+  const steps=Math.floor(len/3.6);
+  for(let i=1;i<steps;i++){const t=i/steps;el('line',{x1:p.x+dx*t+nx,y1:p.y+dy*t+ny,x2:p.x+dx*t-nx,y2:p.y+dy*t-ny,stroke:'#b07a3f','stroke-width':.8});}
+  el('text',{x:p.x,y:p.y+3.8,'font-size':3.4,'text-anchor':'middle'},L.icon);
+}
+for(const[a,S]of Object.entries(SNAKES)){
+  const h=xy(+a),t=xy(S.to),dx=t.x-h.x,dy=t.y-h.y,len=Math.hypot(dx,dy),nx=-dy/len,ny=dx/len;
+  const waves=Math.max(2,Math.round(len/14));let d='';
+  for(let i=0;i<=40;i++){const s=i/40,amp=3*Math.sin(s*Math.PI*waves)*(1-s*.6);
+    d+=(i?'L':'M')+(h.x+dx*s+nx*amp).toFixed(2)+' '+(h.y+dy*s+ny*amp).toFixed(2);}
+  el('path',{d,fill:'none',stroke:'#7a1f1a','stroke-width':3.4,'stroke-linecap':'round','stroke-linejoin':'round',opacity:.9});
+  el('path',{d,fill:'none',stroke:'#c8443b','stroke-width':2.4,'stroke-linecap':'round','stroke-linejoin':'round'});
+  el('path',{d,fill:'none',stroke:'#f08a5d','stroke-width':.8,'stroke-dasharray':'1.2 1.8','stroke-linecap':'round'});
+  el('circle',{cx:h.x,cy:h.y,r:2.6,fill:'#c8443b',stroke:'#7a1f1a','stroke-width':.6});
+  el('circle',{cx:h.x-.9,cy:h.y-.7,r:.6,fill:'#fff'});el('circle',{cx:h.x+.9,cy:h.y-.7,r:.6,fill:'#fff'});
+  el('text',{x:h.x+3.2,y:h.y-2.4,'font-size':3.4,'text-anchor':'middle'},S.icon);
+}
+
+function drawDie(v){die.innerHTML='';for(let i=0;i<9;i++){const s=document.createElement('span');if(PIPS[v].includes(i))s.className='on';die.appendChild(s);}
+  die.classList.toggle('one',v===1);die.setAttribute('aria-label','骰子 '+v+' 点');}
+
+const OFF=[[-1.6,-1.6],[1.6,-1.6],[-1.6,1.6],[1.6,1.6]];
+function render(){
+  players.forEach((p,i)=>{const t=tokens[i];t.hidden=p.pos===0;if(!p.pos)return;
+    const{x,y}=xy(p.pos);const same=players.filter(q=>q.pos===p.pos).length>1;
+    t.style.left=(x+(same?OFF[i][0]:0))+'%';t.style.top=(y+(same?OFF[i][1]:0))+'%';
+    t.classList.toggle('active',i===cur&&!over);});
+  const p=players[cur],s=stageOf(p.pos||1);
+  document.getElementById('turnDot').style.background=p.color;
+  document.getElementById('turnName').textContent=p.name;
+  document.getElementById('turnMeta').innerHTML=`${s.icon} ${s.name} · 积蓄 <span class="money${p.money<0?' neg':''}">${RM(p.money)}</span>`;
+  // shop
+  document.getElementById('shop').innerHTML=Object.entries(POLICIES).map(([k,P])=>{
+    const owned=p.pols.has(k),price=priceOf(k,p.pos);
+    const dis=owned||busy||over||price===null||p.money<price;
+    const label=owned?'✔ 已拥有':price===null?'年龄超限':RM(price);
+    return `<button class="pol${owned?' owned':''}" id="buy-${k}" data-k="${k}" ${dis?'disabled':''}>
+      <b>${P.icon} ${P.name}</b><small>${P.desc}</small><span class="price">${label}</span></button>`;}).join('');
+  document.querySelectorAll('.pol').forEach(b=>b.addEventListener('click',()=>buy(b.dataset.k)));
+  document.getElementById('players').innerHTML=players.map((q,i)=>{
+    const st=stageOf(q.pos||1);
+    const pols=[...q.pols].map(k=>POLICIES[k].icon+POLICIES[k].name).join(' ')||'还没有任何保单';
+    return `<div class="prow${i===cur?' cur':''}"><span class="dot" style="background:${q.color}"></span>
+      <span class="nm">${q.name} <span class="pos">${q.pos?'第 '+q.pos+' 格 · '+st.name:'未出发'}</span></span>
+      <span class="money${q.money<0?' neg':''}">${RM(q.money)}</span><span class="pols">${pols}</span></div>`;}).join('');
+  rollBtn.disabled=busy||over;
+}
+function log(msg){const li=document.createElement('li');li.textContent=msg;const ul=document.getElementById('log');ul.prepend(li);while(ul.children.length>40)ul.lastChild.remove();}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function showModal(html,btn='继续'){
+  return new Promise(res=>{const m=document.getElementById('modal'),s=document.getElementById('sheet');
+    s.innerHTML=html+`<button class="go" id="modalGo">${btn}</button>`;m.hidden=false;
+    const go=document.getElementById('modalGo');go.focus();
+    go.addEventListener('click',()=>{m.hidden=true;res();},{once:true});});
+}
+
+function buy(k){
+  const p=players[cur],price=priceOf(k,p.pos);
+  if(busy||over||p.pols.has(k)||price===null||p.money<price)return;
+  p.money-=price;p.pols.add(k);p.premium+=price;
+  log(`${p.name} 在「${stageOf(p.pos||1).name}」买了${POLICIES[k].name}，保费 ${RM(price)}`);render();
+}
+
+function newGame(n){
+  nPlayers=n;over=false;cur=0;busy=false;
+  tokens.forEach(t=>t.remove());tokens=[];
+  players=Array.from({length:n},(_,i)=>({name:'玩家 '+(i+1),color:COLORS[i],pos:0,rolls:0,money:1000,pols:new Set(),premium:0,saved:0,lost:0,claimed:0}));
+  players.forEach((p,i)=>{const t=document.createElement('div');t.className='token';t.style.background=p.color;t.textContent=i+1;board.appendChild(t);tokens.push(t);});
+  document.querySelectorAll('#seg button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.n===n));
+  document.getElementById('log').innerHTML='';document.getElementById('modal').hidden=true;
+  drawDie(1);log(`新的人生开始！每人起步积蓄 RM 1,000。玩家 1 先走。`);render();
+}
+
+async function slideTo(i,to){const t=tokens[i];t.classList.add('slide');players[i].pos=to;render();await sleep(750);t.classList.remove('slide');}
+
+async function roll(){
+  if(busy||over)return;busy=true;render();
+  const p=players[cur],i=cur;
+  // income
+  const st=stageOf(p.pos||1);let inc=st.income;
+  if(st.name==='退休人生'&&p.pols.has('save'))inc+=2500;
+  p.money+=inc;
+  die.classList.remove('rolling');void die.offsetWidth;die.classList.add('rolling');
+  for(let k=0;k<6;k++){drawDie(1+Math.floor(Math.random()*6));await sleep(80);}
+  const v=1+Math.floor(Math.random()*6);drawDie(v);p.rolls++;
+  let msg=`${p.name} 领收入 ${RM(inc)}，掷出 ${v} 点`;
+  let target=p.pos+v;const path=[];
+  if(target<=100){for(let k=p.pos+1;k<=target;k++)path.push(k);}
+  else{target=200-target;msg+=`，超过终点退回`;for(let k=p.pos+1;k<=100;k++)path.push(k);for(let k=99;k>=target;k--)path.push(k);}
+  for(const k of path){p.pos=k;render();await sleep(190);}
+  msg+=`，来到第 ${p.pos} 格`;
+
+  const L=LADDERS[p.pos],S=SNAKES[p.pos];
+  if(L){
+    p.money+=L.bonus;
+    await showModal(`<div class="kind">好的人生选择 · 爬梯子</div><h2>${L.icon} ${L.title}</h2><p>${L.text}</p>
+      <div class="verdict ok">从第 ${p.pos} 格爬到第 ${L.to} 格${L.bonus?'，另外获得 '+RM(L.bonus):''}。</div>`,'往上爬！');
+    msg+=`，${L.title}，爬到 ${L.to}`;await slideTo(i,L.to);
+  }else if(S){
+    const P=S.cover&&POLICIES[S.cover],has=S.cover&&p.pols.has(S.cover);
+    let verdict;
+    if(has){
+      p.saved++;p.claimed+=S.cost;
+      verdict=`<div class="verdict ok">✅ 你有${P.icon}${P.name}！保险公司赔付 ${RM(S.cost)}。<br>你不用花自己的钱，也不用滑下去，继续留在第 ${p.pos} 格。</div>`;
+    }else{
+      p.money-=S.cost;p.lost+=S.cost;
+      verdict=`<div class="verdict no">❌ ${P?'你没有'+P.icon+P.name+'。':''}自付 ${RM(S.cost)}，积蓄剩 ${RM(p.money)}，滑到第 ${S.to} 格。</div>`+
+        (P?`<div class="verdict tip">💡 如果在「求学成长」阶段买${P.name}，只要 ${RM(P.base)}。</div>`
+          :`<div class="verdict tip">💡 ${S.lesson}</div>`);
+    }
+    await showModal(`<div class="kind">人生风险 · ${S.kind}</div><h2>${S.icon} ${S.title}</h2><p>${S.text}<br>需要的钱：<b>${RM(S.cost)}</b></p>${verdict}`,has?'好险，继续':'继续');
+    if(has)msg+=`，遇到「${S.title}」，${P.name}赔了 ${RM(S.cost)} ✅`;
+    else{msg+=`，遇到「${S.title}」，自付 ${RM(S.cost)}，滑到 ${S.to} ❌`;await slideTo(i,S.to);}
+  }
+
+  if(p.pos===100){over=true;log(msg+'，走完圆满一生！🏆');render();busy=false;await endGame(p);return;}
+  if(v===6)msg+='，掷到 6，再掷一次';else cur=(cur+1)%players.length;
+  log(msg);busy=false;render();
+}
+
+async function endGame(w){
+  const rows=players.map(q=>`<tr><td><span class="dot" style="display:inline-block;width:12px;height:12px;background:${q.color};vertical-align:middle"></span> ${q.name}</td>
+    <td>${[...q.pols].map(k=>POLICIES[k].icon).join('')||'—'}</td><td>${RM(q.premium)}</td><td>${q.saved} 次</td><td>${RM(q.lost)}</td><td style="font-weight:800;color:${q.money<0?'#b42318':'#14532d'}">${RM(q.money)}</td></tr>`).join('');
+  const best=[...players].sort((a,b)=>b.money-a.money)[0];
+  await showModal(`<div class="kind">人生圆满</div><h2>🏆 ${w.name} 先走完一生</h2>
+    <p>${w.rolls} 次骰子走完 100 格。积蓄最多的是 <b>${best.name}</b>。</p>
+    <div class="sumWrap"><table class="sum"><thead><tr><th>玩家</th><th>保单</th><th>保费</th><th>被保险接住</th><th>自付损失</th><th>最后积蓄</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="verdict tip">💡 对比一下「保费」和「自付损失」。保险不能阻止风险发生，但能让你在生、老、病、死来临时，不必从头再来。</div>`,'再走一次人生');
+  newGame(nPlayers);
+}
+
+rollBtn.addEventListener('click',roll);
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&e.target.tagName!=='BUTTON'&&document.getElementById('modal').hidden){e.preventDefault();roll();}});
+document.querySelectorAll('#seg button').forEach(b=>b.addEventListener('click',()=>newGame(+b.dataset.n)));
+document.getElementById('resetBtn').addEventListener('click',()=>newGame(nPlayers));
+newGame(2);
+</script>
+
+<script>
+if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+</script>
+</body>
+</html>
